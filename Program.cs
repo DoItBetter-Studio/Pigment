@@ -1,34 +1,25 @@
+﻿using Avalonia;
 using System;
-using System.Windows.Forms;
 
-namespace Glyphborn.Pigment
+namespace SteelEditor.Pigment
 {
-	internal static class Program
+	internal class Program
 	{
-		/// <summary>
-		///  The main entry point for the application.
-		/// </summary>
+		// Initialization code. Don't use any Avalonia, third-party APIs or any
+		// SynchronizationContext-reliant code before AppMain is called: things aren't initialized
+		// yet and stuff might break.
 		[STAThread]
-		static void Main()
-		{
-			// To customize application configuration such as set high DPI settings or default font,
-			// see https://aka.ms/applicationconfiguration.
-			try
-			{
-				ApplicationConfiguration.Initialize();
+		public static void Main(string[] args) => BuildAvaloniaApp()
+			.StartWithClassicDesktopLifetime(args);
 
-				Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
-				Application.ThreadException += (s, e) =>
-					MessageBox.Show(e.Exception.ToString(), "Thread Exception");
-				AppDomain.CurrentDomain.UnhandledException += (s, e) =>
-					MessageBox.Show(e.ExceptionObject.ToString(), "Unhandled Exception");
-
-				Application.Run(new Pigment());
-			}
-			catch (Exception ex)
-			{
-				MessageBox.Show(ex.ToString(), "Fatal Error");
-			}
-		}
+		// Avalonia configuration, don't remove; also used by visual designer.
+		public static AppBuilder BuildAvaloniaApp()
+			=> AppBuilder.Configure<App>()
+				.UsePlatformDetect()
+#if DEBUG
+	            .WithDeveloperTools()
+#endif
+				.WithInterFont()
+				.LogToTrace();
 	}
 }

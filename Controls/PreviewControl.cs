@@ -1,12 +1,12 @@
-﻿using Glyphborn.Pigment.Editor;
+﻿using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
+using SteelEditor.Pigment.Editor;
 using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
 
-namespace Glyphborn.Pigment.Controls
+namespace SteelEditor.Pigment.Controls
 {
 	public class PreviewControl : Control
 	{
@@ -14,13 +14,17 @@ namespace Glyphborn.Pigment.Controls
 		private const int FB_HEIGHT = 360;
 
 		private readonly uint[] _framebuffer = new uint[FB_WIDTH * FB_HEIGHT];
-		private Bitmap _surface;
+		private readonly WriteableBitmap _surface;
 
 		public PreviewControl()
 		{
-			DoubleBuffered = true;
-			BackColor = Color.Black;
-			_surface = new Bitmap(FB_WIDTH, FB_HEIGHT, PixelFormat.Format32bppArgb);
+			_surface = new WriteableBitmap(
+				new PixelSize(FB_WIDTH, FB_HEIGHT),
+				new Vector(96, 96),
+				PixelFormat.Bgra8888,
+				AlphaFormat.Unpremul);
+
+			SizeChanged += (_, _) => InvalidateVisual();
 		}
 
 		public void Redraw(SkinDocument document)
@@ -31,8 +35,8 @@ namespace Glyphborn.Pigment.Controls
 			{
 				var bmp = document.GetElement(name);
 				if (bmp == null) return;
-				var pixels = BitmapToPixels(bmp);
-				DrawNineSlice(pixels, bmp.Width, bmp.Height, x, y, w, h, 16, 16, 16, 16);
+				var pixels = BitmapToPixels(bmp, document);
+				DrawNineSlice(pixels, bmp.PixelSize.Width, bmp.PixelSize.Height, x, y, w, h, 16, 16, 16, 16);
 			}
 
 			// Containers
@@ -40,7 +44,7 @@ namespace Glyphborn.Pigment.Controls
 			Draw("Panel", 8, 8, 140, 80);
 			Draw("Dialogue Box", 120, 280, 400, 70);
 			Draw("Portrait Frame", 124, 284, 60, 62);
-			Draw("Notification", 220, 8, 200, 28);
+			Draw("Notification", 220, 8, 200, 48);
 			Draw("Tooltip", 480, 8, 150, 60);
 
 			// Buttons
@@ -68,17 +72,9 @@ namespace Glyphborn.Pigment.Controls
 			Draw("Checkbox", 8, 130, 16, 16);
 			Draw("Checkbox Checked", 8, 152, 16, 16);
 
-			var data = _surface.LockBits(
-				new Rectangle(0, 0, FB_WIDTH, FB_HEIGHT),
-				ImageLockMode.WriteOnly,
-				PixelFormat.Format32bppArgb);
+			BitmapUtil.WritePixels(_surface, Array.ConvertAll(_framebuffer, x => unchecked((int)x)));
 
-			Marshal.Copy(
-				Array.ConvertAll(_framebuffer, x => (int)x),
-				0, data.Scan0, _framebuffer.Length);
-
-			_surface.UnlockBits(data);
-			Invalidate();
+			InvalidateVisual();
 		}
 
 		private void BlitTiledRegion(uint[] pixels, int imgW, int imgH,
@@ -134,41 +130,65 @@ namespace Glyphborn.Pigment.Controls
 			BlitTiledRegion(pixels, imgW, imgH, dstX + sliceLeft, dstY + sliceTop, centerDstW, centerDstH, sliceLeft, sliceTop, centerSrcW, centerSrcH);
 		}
 
-		private uint[] BitmapToPixels(Bitmap bmp)
+		private uint[] BitmapToPixels(WriteableBitmap bmp, SkinDocument document)
 		{
-			var pixels = new uint[bmp.Width * bmp.Height];
-			var data = bmp.LockBits(
-				new Rectangle(0, 0, bmp.Width, bmp.Height),
-				ImageLockMode.ReadOnly,
-				PixelFormat.Format32bppArgb);
+			int[] raw = BitmapUtil.ReadPixels(bmp);
+			var pixels = new uint[raw.Length];
 
-			Marshal.Copy(data.Scan0, (int[])(object)pixels, 0, pixels.Length);
-			bmp.UnlockBits(data);
+			var source = document.SourcePalette;
+			var active = document.ActivePalette;
+
+			for (int i = 0; i < raw.Length; i++)
+			{
+				var c = Color.FromUInt32(unchecked((uint)raw[i]));
+
+				if (c.A > 0 && source != null && active != null)
+				{
+					// Find matching index in source palette
+					int index = -1;
+					for (int j = 0; j < source.Length; j++)
+					{
+						if (source[j].R == c.R && source[j].G == c.G && source[j].B == c.B)
+						{
+							index = j;
+							break;
+						}
+					}
+
+					if (index >= 0 && index < active.Length)
+					{
+						var remapped = active[index];
+						pixels[i] = (uint)((remapped.A << 24) | (remapped.R << 16) | (remapped.G << 8) | remapped.B);
+						continue;
+					}
+				}
+
+				pixels[i] = (uint)((c.A << 24) | (c.R << 16) | (c.G << 8) | c.B);
+			}
+
 			return pixels;
 		}
 
-		protected override void OnPaint(PaintEventArgs e)
+		public override void Render(DrawingContext context)
 		{
-			var g = e.Graphics;
-			g.Clear(Color.Black);
+			context.FillRectangle(Brushes.Black, new Rect(Bounds.Size));
 
-			float scaleX = (float)Width / FB_WIDTH;
-			float scaleY = (float)Height / FB_HEIGHT;
-			float scale = Math.Min(scaleX, scaleY);
+			double scaleX = Bounds.Width / FB_WIDTH;
+			double scaleY = Bounds.Height / FB_HEIGHT;
+			double scale = Math.Min(scaleX, scaleY);
 
-			int renderW = (int)(FB_WIDTH * scale);
-			int renderH = (int)(FB_HEIGHT * scale);
-			int offsetX = (Width - renderW) / 2;
-			int offsetY = (Height - renderH) / 2;
+			double renderW = FB_WIDTH * scale;
+			double renderH = FB_HEIGHT * scale;
+			double offsetX = (Bounds.Width - renderW) / 2;
+			double offsetY = (Bounds.Height - renderH) / 2;
 
-			g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor;
-			g.DrawImage(_surface, offsetX, offsetY, renderW, renderH);
-		}
+			var destRect = new Rect(offsetX, offsetY, renderW, renderH);
+			var srcRect = new Rect(0, 0, FB_WIDTH, FB_HEIGHT);
 
-		protected override void OnResize(EventArgs e)
-		{
-			base.OnResize(e);
-			Invalidate();
+			using (context.PushRenderOptions(new RenderOptions { BitmapInterpolationMode = BitmapInterpolationMode.None }))
+			{
+				context.DrawImage(_surface, srcRect, destRect);
+			}
 		}
 	}
 }

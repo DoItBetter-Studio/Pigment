@@ -1,8 +1,8 @@
-﻿using System;
-using System.Drawing;
+﻿using Avalonia.Media;
+using System;
 using System.IO;
 
-namespace Glyphborn.Pigment.Editor
+namespace SteelEditor.Pigment.Editor
 {
 	public static class PngPaletteReader
 	{

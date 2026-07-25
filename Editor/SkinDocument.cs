@@ -1,28 +1,39 @@
-﻿using System;
+﻿using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Text;
-using System.Windows.Forms;
 
-namespace Glyphborn.Pigment.Editor
+namespace SteelEditor.Pigment.Editor
 {
 	public class SkinDocument
 	{
-		private readonly Dictionary<string, Bitmap> _elements = new();
-		public Color[] ActivePalette { get; private set; } = null;
+
+		public class ElementData
+		{
+			public WriteableBitmap Bitmap;
+			public string Path;
+		}
+
+		private readonly Dictionary<string, ElementData> _elementData = new();
+
+		private readonly Dictionary<string, WriteableBitmap> _elements = new();
+
+		public Color[] ActivePalette { get; set; } = null;
+		public Color[] SourcePalette { get; private set; } = null;
+		public Dictionary<string, ElementData> GetAllElements() => _elementData;
 
 
 		public event Action OnChanged;
 		public event Action<Color[]> OnPaletteDetected;
 
-		public PaletteSetResult SetElement(string name, Bitmap bitmap, string path = null)
+		public PaletteSetResult SetElement(string name, WriteableBitmap bitmap, string path = null)
 		{
-			if (_elements.TryGetValue(name, out var existing))
-				existing?.Dispose();
+			if (_elementData.TryGetValue(name, out var existing))
+				existing?.Bitmap?.Dispose();
 
 			if (bitmap == null)
 			{
+				_elementData[name] = new ElementData { Bitmap = null, Path = null };
 				_elements[name] = null;
 				OnChanged?.Invoke();
 				return PaletteSetResult.Ok;
@@ -33,22 +44,25 @@ namespace Glyphborn.Pigment.Editor
 				if (ActivePalette == null)
 				{
 					ActivePalette = palette;
+					SourcePalette = (Color[])palette.Clone();
 					OnPaletteDetected?.Invoke(palette);
 				}
 				else if (!PalettesMatch(ActivePalette, palette))
 				{
+					_elementData[name] = new ElementData { Bitmap = bitmap, Path = path };
 					_elements[name] = bitmap;
 					OnChanged?.Invoke();
 					return PaletteSetResult.PaletteMismatch;
 				}
 			}
 
+			_elementData[name] = new ElementData { Bitmap = bitmap, Path = path };
 			_elements[name] = bitmap;
 			OnChanged?.Invoke();
 			return PaletteSetResult.Ok;
 		}
 
-		public Bitmap GetElement(string name)
+		public WriteableBitmap GetElement(string name)
 		{
 			_elements.TryGetValue(name, out var bmp);
 			return bmp;
@@ -62,7 +76,7 @@ namespace Glyphborn.Pigment.Editor
 		{
 			if (a.Length != b.Length) return false;
 			for (int i = 0; i < a.Length; i++)
-				if (a[i] != b[i]) return false;
+				if (a[i].A != b[i].A || a[i].R != b[i].R || a[i].G != b[i].G || a[i].B != b[i].B) return false;
 			return true;
 		}
 
