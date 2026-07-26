@@ -11,9 +11,6 @@
     <AvaloniaResource Include="Assets\Pigment.ico" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="version.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <EmbeddedResource Include="Assets\Pigment.png" />
   </ItemGroup>
 
