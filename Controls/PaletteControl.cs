@@ -596,7 +596,10 @@ namespace SteelEditor.Pigment.Controls
 		{
 			_variants.Clear();
 			foreach (var v in variants)
+			{
+				if (v.Name == null || v.Colors == null) continue;
 				_variants.Add(new PaletteVariant(v.Name, v.Colors));
+			}
 
 			_selectedVariant = selectedIndex >= 0 && selectedIndex < _variants.Count ? selectedIndex : 0;
 			RecalcLayout();

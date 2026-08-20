@@ -21,7 +21,7 @@ namespace SteelEditor.Pigment.Controls
 			public string Name;
 			public string Filename = "No image";
 			public bool Expanded = false;
-			public Bitmap Thumbnail = null;
+			public Bitmap? Thumbnail = null;
 
 			public int Y;          // current top y in list space
 			public int Height;     // current height
@@ -75,7 +75,7 @@ namespace SteelEditor.Pigment.Controls
 		private const double FontHeaderSize = 13;
 		private const double FontFilenameSize = 11;
 
-		private SkinDocument _document;
+		private SkinDocument? _document;
 
 		public ElementListControl()
 		{
@@ -250,7 +250,7 @@ namespace SteelEditor.Pigment.Controls
 						entry.Thumbnail?.Dispose();
 						entry.Thumbnail = null;
 						entry.Filename = "No image";
-						_document.SetElement(entry.Name, null);
+						_document?.SetElement(entry.Name, null);
 						Redraw();
 						return;
 					}
@@ -285,7 +285,7 @@ namespace SteelEditor.Pigment.Controls
 			string path = files[0].Path.LocalPath;
 
 			var bmp = BitmapUtil.LoadBitmap(path);
-			var result = _document.SetElement(entry.Name, bmp, path);
+			var result = _document?.SetElement(entry.Name, bmp, path);
 
 			if (result == PaletteSetResult.PaletteMismatch)
 			{
@@ -296,7 +296,19 @@ namespace SteelEditor.Pigment.Controls
 				if (!proceed)
 				{
 					bmp.Dispose();
-					_document.SetElement(entry.Name, null);
+					_document?.SetElement(entry.Name, null);
+					return;
+				}
+			}
+			else if (result == PaletteSetResult.NullPalette)
+			{
+				bool proceed = await ShowYesNoDialogAsync(
+					"Null Palette",
+					$"The image assigned to '{entry.Name}' has no palette information.\n\nThis may cause issues with the skin. Continue anyway?");
+
+				if (!proceed)
+				{
+					bmp.Dispose();
 					return;
 				}
 			}

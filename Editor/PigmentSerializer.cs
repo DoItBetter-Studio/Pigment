@@ -38,10 +38,10 @@ namespace SteelEditor.Pigment.Editor
 
 			foreach (var variant in variants)
 			{
-				writer.Write(variant.Name);
-				writer.Write((ushort)variant.Colors.Length);
+				writer.Write(variant.Name ?? string.Empty);
+				writer.Write((ushort)(variant.Colors?.Length ?? 0));
 
-				foreach (var color in variant.Colors)
+				foreach (var color in variant.Colors ?? new Color[0])
 				{
 					writer.Write(color.A);
 					writer.Write(color.R);
@@ -122,7 +122,7 @@ namespace SteelEditor.Pigment.Editor
 				// Always write 256 entries, pad with zeros
 				for (int i = 0; i < 256; i++)
 				{
-					if (i < variant.Colors.Length)
+					if (i < (variant.Colors?.Length))
 					{
 						var c = variant.Colors[i];
 						uint argb = (uint)((c.A << 24) | (c.R << 16) | (c.G << 8) | c.B);
@@ -210,7 +210,7 @@ namespace SteelEditor.Pigment.Editor
 
 	public class PaletteVariantData
 	{
-		public string Name;
-		public Color[] Colors;
+		public string? Name;
+		public Color[]? Colors;
 	}
 }

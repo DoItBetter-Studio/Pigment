@@ -6,15 +6,15 @@ namespace SteelEditor.Pigment.Editor
 {
 	public static class PngPaletteReader
 	{
-		public static Color[] ReadPalette(string path)
+		public static Color[]? ReadPalette(string path)
 		{
 			using var stream = File.OpenRead(path);
 			using var reader = new BinaryReader(stream);
 
 			reader.ReadBytes(8); // PNG signature
 
-			Color[] palette = null;
-			byte[] transparency = null;
+			Color[]? palette = null;
+			byte[]? transparency = null;
 
 			while (stream.Position < stream.Length)
 			{

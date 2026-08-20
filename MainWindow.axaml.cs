@@ -267,7 +267,11 @@ namespace SteelEditor.Pigment
 			_currentFilePath = null;
 			_document = new SkinDocument();
 			_document.OnChanged += () => _preview?.Redraw(_document);
-			_document.OnPaletteDetected += colors => _palette?.InitFromPalette(colors);
+			_document.OnPaletteDetected += colors =>
+			{
+				if (colors == null || colors.Length == 0) return;
+				_palette?.InitFromPalette(colors);
+			};
 
 			// Wire Palette changes directly to SkinDocument and Preview
 			_palette!.OnVariantSelected += colors =>
@@ -305,7 +309,11 @@ namespace SteelEditor.Pigment
 
 			_document = new SkinDocument();
 			_document.OnChanged += () => _preview?.Redraw(_document);
-			_document.OnPaletteDetected += colors => _palette?.InitFromPalette(colors);
+			_document.OnPaletteDetected += colors =>
+			{
+				if (colors == null || colors.Length == 0) return;
+				_palette?.InitFromPalette(colors);
+			};
 
 			_elementList?.Reset();
 			_elementList?.SetDocument(_document);
